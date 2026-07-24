@@ -1,0 +1,11 @@
+{
+  "publishRoot": "D:\\WEB\\Apache24\\htdocs\\death_clips",
+  "domain": "cn.fflogs.com",
+  "lead": 10,
+  "padBefore": 10,
+  "padAfter": 5,
+  "gap": 10,
+  "ignoreGroups": [
+    ["肥朒朒膨鼠", "遲到松坂", "Shiro"]
+  ]
+}

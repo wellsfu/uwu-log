@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>死亡片段回顧</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1 id="report-title">死亡片段回顧</h1>
+      <a id="report-link" href="#" target="_blank" rel="noopener">在 FFLogs 開啟報告 ↗</a>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <label>王/階段</label>
+      <select id="filter-boss"><option value="">全部</option></select>
+    </div>
+    <div class="toolbar-group">
+      <label>玩家</label>
+      <select id="filter-player"><option value="">全部</option></select>
+    </div>
+    <div class="toolbar-group checkbox-group">
+      <label><input type="checkbox" id="filter-show-excluded" /> 顯示被排除的死亡事件(團滅/戰術死亡)</label>
+    </div>
+  </div>
+
+  <main id="pulls"></main>
+
+  <footer class="footer">由 fflogs-death-clips 產生</footer>
+
+  <script src="./data.js"></script>
+  <script src="./analysis.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
