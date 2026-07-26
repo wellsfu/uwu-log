@@ -1,35 +1,35 @@
 ---
 name: death-cause-analysis
-description: Use when analyzing an FFLogs death record for a raid encounter in this repo — writing analysis.js entries, answering "why did X die here", or checking whether a newly added encounter's *_MECHANICS.md is queryable.
+description: Use when analyzing an FFLogs death record for a raid encounter in this repo — writing analysis.js entries, answering "why did X die here", or checking whether a newly added encounter's memory/encounters/<NAME>/ folder is queryable.
 ---
 
 # 死因解析 (Death Cause Analysis)
 
 ## Overview
 
-每個副本各自有一份 `<ENCOUNTER>_MECHANICS.md`(例如 `UWU_MECHANICS.md`),把死亡紀錄裡的技能名稱對照到機制說明與死因判讀;`memory/<LV>/<Job>.md` 是同一套用途的另一半——查玩家職業手上實際有什麼技能/CD。這份 skill 是通用的**查表流程**,不寫死任何一隻王的技能或職業技能——知識全部放在對應的 `*_MECHANICS.md` 和 `memory/` 裡。新增副本時只要照同樣的表格結構寫一份新的 `*_MECHANICS.md`,不用改這份 skill。
+每個副本各自有一個 `memory/encounters/<NAME>/` 資料夾(例如 `memory/encounters/UWU/`),裡面一份 `README.md` 索引加上多份 `<Boss>.md`,把死亡紀錄裡的技能名稱對照到機制說明與死因判讀;`memory/class-abilities/<LV>/<Job>.md` 是同一套用途的另一半——查玩家職業手上實際有什麼技能/CD。這份 skill 是通用的**查表流程**,不寫死任何一隻王的技能或職業技能——知識全部放在對應的 `memory/encounters/` 和 `memory/class-abilities/` 裡。新增副本時只要照同樣的結構新增一個 `memory/encounters/<新副本代號>/` 資料夾,不用改這份 skill。
 
 ## When to use
 
 - 要幫某場 pull 的死亡紀錄寫死因說明(填 `analysis.js`)
 - 被問「這個技能為什麼會死」、「這次團滅原因」
-- 專案新增了一個副本,要確認它的 `*_MECHANICS.md` 能否被這份流程查到
+- 專案新增了一個副本,要確認它的 `memory/encounters/<NAME>/` 能否被這份流程查到
 
-## Step 1 — 找到對應的機制表
+## Step 1 — 找到對應的副本資料夾與索引
 
-在專案根目錄找 `*_MECHANICS.md`。若有多份,用 FFLogs 報告的副本/zone 名稱,或使用者提到的副本名稱去比對檔名。**找不到對應檔案就直接說明「這個副本沒有機制對照表」,不要拿別隻王的表硬套。**
+在 `memory/encounters/` 底下找對應的 `<NAME>/` 資料夾。若有多個,用 FFLogs 報告的副本/zone 名稱,或使用者提到的副本名稱去比對資料夾名稱。**找不到對應資料夾就直接說明「這個副本沒有機制對照表」,不要拿別隻王的表硬套。** 找到後先讀該資料夾的 `README.md`——裡面有這場戰鬥固定同步的等級(對應 Step 2 要查的 `class-abilities/<LV>/`)、跨階段/跨Boss技能名稱重複出現的警告、各階段大約時長總覽,以及底下每個 `<Boss>.md` 的索引。
 
 ## Step 2 — 涉及的每個職業,先讀對應的技能參考檔
 
-若 repo 有 `memory/` 資料夾(職業技能參考庫,見 `memory/README.md`):針對死亡記錄裡涉及到的每個職業——死者本人,以及 Step 6 判斷根本原因時可能牽涉到的其他職業(例如該負責減傷/無敵的坦克、該補血的治療)——**在分析前先載入**對應的 `memory/<同步等級>/<職業識別碼>.md`,查這個職業實際持有哪些技能、CD 多長。同步等級通常會寫在 Step 1 找到的 `*_MECHANICS.md` 裡(找不到就查 `memory/README.md`)。職業識別碼用英文(對應 FFLogs/`data.js` 的職業欄位),不是中文名或縮寫。沒有 `memory/` 資料夾就跳過這步。
+若 repo 有 `memory/` 資料夾(見 `memory/README.md`):針對死亡記錄裡涉及到的每個職業——死者本人,以及 Step 6 判斷根本原因時可能牽涉到的其他職業(例如該負責減傷/無敵的坦克、該補血的治療)——**在分析前先載入**對應的 `memory/class-abilities/<同步等級>/<職業識別碼>.md`,查這個職業實際持有哪些技能、CD 多長。同步等級寫在 Step 1 讀到的 `memory/encounters/<NAME>/README.md` 裡。職業識別碼用英文(對應 FFLogs/`data.js` 的職業欄位),不是中文名或縮寫。沒有 `memory/` 資料夾就跳過這步。
 
 ## Step 3 — 從 FFLogs 死亡紀錄取得欄位
 
 技能名稱(致命一擊)、是否標記「一擊必殺」、死亡時間點(pull 內相對秒數)、受到的傷害、受到的治療、DOT 持續秒數(若有)。同時記錄死亡前後約 10~15 秒內的其他事件(誰施放了什麼、誰吃了什麼 buff/debuff、附近有沒有其他人死亡)——Step 6 要用。
 
-## Step 4 — 查表分類,注意技能名稱跨階段重複
+## Step 4 — 找到對的 Boss/Phase 檔案,查表分類,注意技能名稱跨階段重複
 
-在機制表裡找到這個技能名稱所屬的分類(表格通常會分兩大類,常見是「一擊必殺」vs「持續傷害/補量」)。**同一個技能名稱可能在多個階段重複出現**——不要只看 FFLogs 標的 phase 就下結論,對照死亡時間點所在的秒數區間(機制表通常附各階段大約時長)來判斷實際是哪個階段施放的。
+先用死亡時間點對照 Step 1 讀到的 README.md 裡的各階段時長,判斷這是哪個 Boss/Phase,開對應的 `<Boss>.md`。**同一個技能名稱可能在多個 Boss/Phase 檔案裡重複出現**(常見於多階段組合的最終戰,會沿用前面幾隻王的招式)——不要只看 FFLogs 標的 phase 就下結論,對照死亡時間點所在的秒數區間來判斷實際是哪個階段施放的;如果查到的檔案裡該技能只有簡述+「詳見 XX.md」的cross-reference,要接著去那份被指到的檔案查完整機制說明。在該檔案裡找到這個技能名稱所屬的分類(表格通常會分兩大類,常見是「一擊必殺」vs「持續傷害/補量」)。
 
 ## Step 5 — 依分類套用推理
 
@@ -81,6 +81,6 @@ window.DEATH_ANALYSIS = {
 
 - 只看 FFLogs 標的 phase 就假設技能來源,沒對照死亡時間點——同技能跨階段重複時會判斷錯誤
 - 治療量不低卻直接判定「機制沒躲開」,沒分清一擊必殺 vs 補量類的判讀邏輯
-- 找不到對應的 `*_MECHANICS.md` 卻硬套其他副本的表
+- 找不到對應的 `memory/encounters/<NAME>/` 資料夾卻硬套其他副本的表
 - 看到死因判讀寫「站位錯誤」就直接寫成死者自己的錯,沒查 Step 6 的前後事件確認是否為隊友沒開減傷/沒歸位、或前一次死亡連鎖造成
 - 判定「減傷/無敵沒開」時沒有先查 Step 2 該職業的技能表,憑印象猜這個職業有沒有這個技能、CD 有沒有轉好
