@@ -7,7 +7,8 @@
 **有**:
 - `scrape.mjs` — 主程式(爬 FFLogs → 分群判斷 → 對應影片 → ffmpeg 剪片 → 產生網頁)
 - `web/` — 網頁模板
-- `memory/` — 死因分析參考資料庫,給人工/AI 寫死因分析時查用,分成 `class-abilities/`(職業技能)與 `encounters/`(副本機制,目前有 UWU)兩個子系統,詳見 `memory/README.md`
+- `UWU_MECHANICS.md` — 這隻王完整機制對照表(源自破解攻略),給人工/AI 寫死因分析時查用
+- `memory/` — 純技能事實資料庫(職業技能 `class-abilities/` + 王技能 `encounters/`),不含死因判讀,是 `UWU_MECHANICS.md` 需要更精確數據時的輔助查證來源,詳見 `memory/README.md`
 - `config.example.json` — 設定檔範本
 
 **沒有(刻意不放進 git)**:
@@ -44,7 +45,7 @@ node scrape.mjs --report <FFLogs報告代碼> --video-dir "<這場錄影所在�
 
 ## 死因分析怎麼加(analysis.js)
 
-工具本身只能用「傷害數字、是否一擊必殺、治療量」做粗略分群,無法判斷「這個死亡實際上是什麼機制、為什麼會死」——這件事需要人(或 AI)實際去看 FFLogs 該場的死亡明細,對照 `memory/encounters/UWU/` 查出對應的技能機制,再寫一段簡短說明。
+工具本身只能用「傷害數字、是否一擊必殺、治療量」做粗略分群,無法判斷「這個死亡實際上是什麼機制、為什麼會死」——這件事需要人(或 AI)實際去看 FFLogs 該場的死亡明細,對照 `UWU_MECHANICS.md` 查出對應的技能機制,再寫一段簡短說明。
 
 每次執行 `scrape.mjs` 都會在輸出資料夾自動建立一個空的 `analysis.js`(如果還不存在的話;已存在則不會覆蓋),格式是:
 
@@ -68,4 +69,4 @@ window.DEATH_ANALYSIS = {
 歡迎改進的方向:
 - `scrape.mjs` 的分群/影片比對邏輯(目前用「片長依序比對」抓孤兒錄影,可能還有邊界案例)
 - `web/` 的顯示介面
-- **最歡迎**:`memory/encounters/UWU/` 機制寫錯或不夠精確的地方——這份是給所有人共用查的機制對照表,不是某個團隊專屬的
+- **最歡迎**:`UWU_MECHANICS.md` 機制寫錯或不夠精確的地方——這份是給所有人共用查的機制對照表,不是某個團隊專屬的
