@@ -70,6 +70,8 @@ description: Use when analyzing an FFLogs death record for a raid encounter in t
 | `mechanism` | 機制講解——這個技能是什麼、怎麼運作(可直接摘錄機制表的「機制說明」) |
 | `detail` | 詳細分析——結合這場實際數據(傷害/治療數字、死亡時間點、跟其他人死亡的關聯)說明為什麼判定是這個死因 |
 
+**這三段文字是給看網頁的隊友看的最終結果,必須自成一體**——不要提到任何內部參考檔案的檔名或路徑(`*_MECHANICS.md`、`memory/...`、`data.js` 等),隊友看不到也不需要知道這些檔案存在。把技能機制、時間點、傷害/治療數字直接寫成白話文字,不要寫「根據 XXX.md」、「查 memory/ 得知」這種帶檔名的說法。
+
 若在這個 repo 的 scrape.mjs 工作流程下,寫進輸出資料夾 `analysis.js` 對應的 `clipFile` key,格式:
 
 ```js
@@ -91,3 +93,4 @@ window.DEATH_ANALYSIS = {
 - 找不到對應的 `*_MECHANICS.md` 卻硬套其他副本的表
 - 看到死因判讀寫「站位錯誤」就直接寫成死者自己的錯,沒查 Step 6 的前後事件確認是否為隊友沒開減傷/沒歸位、或前一次死亡連鎖造成
 - 判定「減傷/無敵沒開」時沒有先查 Step 2 該職業的技能表,憑印象猜這個職業有沒有這個技能、CD 有沒有轉好
+- 寫進 `conclusion`/`mechanism`/`detail` 時提到查表用的檔名(`*_MECHANICS.md`、`memory/...`),而不是把內容直接轉成白話文字——隊友看到的是網頁,看不到這些內部檔案
