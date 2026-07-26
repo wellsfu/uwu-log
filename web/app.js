@@ -104,22 +104,33 @@
       card.appendChild(na);
     }
 
-    // 死因分析是人工看過死亡前後的傷害紀錄後寫的,不是腳本自動產生。
-    // 只有在 analysis.js 裡有對應這個片段的條目時才會顯示。
+    // 死因分析是人工(或AI照 death-cause-analysis skill)看過死亡前後的傷害紀錄後寫的,不是腳本自動產生。
+    // 只有在 analysis.js 裡有對應這個片段的條目時才會顯示。條目可以是三段式物件
+    // { conclusion, mechanism, detail },舊格式的純字串也相容(當成單一段落顯示)。
     const analysisMap = window.DEATH_ANALYSIS || {};
-    const analysisText = c.clipFile ? analysisMap[c.clipFile] : null;
-    if (analysisText) {
+    const analysisEntry = c.clipFile ? analysisMap[c.clipFile] : null;
+    if (analysisEntry) {
+      const sections = typeof analysisEntry === 'string'
+        ? [['死因分析', analysisEntry]]
+        : [
+            ['結論', analysisEntry.conclusion],
+            ['機制講解', analysisEntry.mechanism],
+            ['詳細分析', analysisEntry.detail],
+          ];
       const box = document.createElement('div');
       box.className = 'death-analysis';
-      const label = document.createElement('div');
-      label.className = 'death-analysis-label';
-      label.textContent = '死因分析';
-      const body = document.createElement('div');
-      body.className = 'death-analysis-body';
-      body.textContent = analysisText;
-      box.appendChild(label);
-      box.appendChild(body);
-      card.appendChild(box);
+      for (const [labelText, bodyText] of sections) {
+        if (!bodyText) continue;
+        const label = document.createElement('div');
+        label.className = 'death-analysis-label';
+        label.textContent = labelText;
+        const body = document.createElement('div');
+        body.className = 'death-analysis-body';
+        body.textContent = bodyText;
+        box.appendChild(label);
+        box.appendChild(body);
+      }
+      if (box.childElementCount) card.appendChild(box);
     }
 
     return card;

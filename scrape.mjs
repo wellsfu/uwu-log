@@ -440,7 +440,11 @@ async function main() {
       '// (機制對照表,同一個技能名稱可能跨階段重複出現,不要只看FFLogs標的phase;\n' +
       '//  查表流程見 .claude/skills/death-cause-analysis/SKILL.md)。\n' +
       'window.DEATH_ANALYSIS = {\n' +
-      '  // "P02_Ifrit_1-41_Mmaru.mp4": "分析內容...",\n' +
+      '  // "P02_Ifrit_1-41_Mmaru.mp4": {\n' +
+      '  //   conclusion: "一句話結論",\n' +
+      '  //   mechanism: "機制講解——這技能是什麼、怎麼運作",\n' +
+      '  //   detail: "詳細分析——結合這場實際數據跟前後事件,說明為什麼判定是這個死因",\n' +
+      '  // },\n' +
       '};\n',
       'utf-8'
     );
