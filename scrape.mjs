@@ -436,7 +436,7 @@ async function main() {
       analysisPath,
       '// 死因分析:人工看過死亡前後的傷害紀錄後填寫,key 是 clipFile 檔名。\n' +
       '// 腳本重跑不會覆蓋這個檔案,請直接編輯。\n' +
-      '// 分析技能名稱前請先查 repo 根目錄對應的 <副本>_MECHANICS.md(例如 UWU_MECHANICS.md)\n' +
+      '// 分析技能名稱前請先查 memory/encounters/<副本代號>/(例如 memory/encounters/UWU/)\n' +
       '// (機制對照表,同一個技能名稱可能跨階段重複出現,不要只看FFLogs標的phase;\n' +
       '//  查表流程見 .claude/skills/death-cause-analysis/SKILL.md)。\n' +
       'window.DEATH_ANALYSIS = {\n' +
