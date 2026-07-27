@@ -4,6 +4,10 @@
 // 第一次使用請先複製 config.example.json 成 config.json,填入你自己的網站發布路徑、
 // 常駐排除的玩家組合等機器/團隊專屬設定(config.json 已加入 .gitignore,不會被提交)。
 //
+// 抓資料改用 FFLogs 官方 API v2(GraphQL),不會再經過瀏覽器/Cloudflare 驗證。
+// 需要先到 https://<domain>/api/clients/ (登入後) 建立一個 API Client,
+// 把拿到的 Client ID / Client Secret 填進 config.json 的 clientId / clientSecret。
+//
 // 選項(這裡指定的值會覆蓋 config.json):
 //   --report <code>       FFLogs 報告代碼 (必填)
 //   --domain <domain>     預設讀 config.json,否則 cn.fflogs.com
@@ -19,7 +23,6 @@
 //   --ignore "A,B,C;D,E"  排除特定玩家組合同時死亡的已知戰術死亡 (分號分隔多組, 逗號分隔組內玩家)
 //                         預設讀 config.json 的 ignoreGroups
 
-import { chromium } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -64,15 +67,33 @@ function parseArgs(argv) {
   return args;
 }
 
+// ignoreGroups 每一組可以是純玩家名字陣列(舊格式,只比對人)或
+// { players: [...], ability: "技能名稱" } 物件(額外要求死因技能也對上,更精確)。
+// --ignore CLI 參數只支援純名字陣列(沿用原本語法),不支援指定技能。
+function normalizeIgnoreGroup(g) {
+  if (Array.isArray(g)) return { players: g, ability: null };
+  return { players: g.players || [], ability: g.ability || null };
+}
+
 function parseIgnoreGroups(raw) {
-  if (!raw) return CONFIG.ignoreGroups || [];
-  return raw.split(';').map(g => g.split(',').map(s => s.trim()).filter(Boolean)).filter(g => g.length);
+  const groups = raw
+    ? raw.split(';').map(g => g.split(',').map(s => s.trim()).filter(Boolean)).filter(g => g.length)
+    : (CONFIG.ignoreGroups || []);
+  return groups.map(normalizeIgnoreGroup);
 }
 
 function sameSet(a, b) {
   if (a.length !== b.length) return false;
   const sa = new Set(a);
   return b.every(x => sa.has(x));
+}
+
+// 整群死亡是否符合這條忽略規則:玩家名單要完全對上,
+// 若規則有指定 ability,還要求群內每個死亡的擊殺技能都是那個技能。
+function matchesIgnoreGroup(cluster, group) {
+  if (!sameSet(cluster.players, group.players)) return false;
+  if (!group.ability) return true;
+  return cluster.deaths.every(d => d.abilityName === group.ability);
 }
 
 function todayDateStr() {
@@ -130,7 +151,7 @@ if (!args.publishRoot && !args.outDir) {
   process.exit(1);
 }
 
-// 盡早驗證 --video-dir,避免相對路徑打錯字時,浪費一輪爬蟲(含 Cloudflare 驗證)才在剪片階段才炸掉。
+// 盡早驗證 --video-dir,避免相對路徑打錯字時,浪費一輪 API 請求才在剪片階段才炸掉。
 args.videoDir = path.resolve(args.videoDir);
 if (!fs.existsSync(args.videoDir) || !fs.statSync(args.videoDir).isDirectory()) {
   console.error(`!! 找不到錄影資料夾: ${args.videoDir}`);
@@ -156,12 +177,6 @@ fs.mkdirSync(args.outDir, { recursive: true });
 console.log(`輸出目錄: ${args.outDir} (戰鬥日期判斷為 ${args.date})`);
 
 // ---------- 小工具 ----------
-function mmssToSec(text) {
-  const m = text.trim().match(/(\d+):(\d+(?:\.\d+)?)/);
-  if (!m) return null;
-  return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
-}
-
 async function ffprobeDuration(file) {
   const { stdout } = await execFileAsync('ffprobe', [
     '-v', 'error', '-show_entries', 'format=duration',
@@ -174,81 +189,157 @@ function safeName(s) {
   return s.replace(/[\\/:*?"<>|]/g, '_');
 }
 
-// ---------- 1. 用 Playwright 抓報告資料 ----------
-async function scrapeReport() {
-  const profileDir = path.join(__dirname, '.pw-profile');
-  const context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    channel: 'chrome',
+function secToMMSS(sec) {
+  const s = Math.max(0, Math.round(sec));
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return `${m}:${ss}`;
+}
+
+// ---------- FFLogs API v2 (GraphQL) ----------
+// 改用官方 API 直接拿資料,完全不經過網頁,不會再卡 Cloudflare 人機驗證。
+// 需要先在 https://<domain>/api/clients/ 建立一個 API Client,把 Client ID/Secret
+// 存進 config.json 的 clientId / clientSecret(config.json 已 gitignore)。
+async function getAccessToken() {
+  const clientId = CONFIG.clientId;
+  const clientSecret = CONFIG.clientSecret;
+  if (!clientId || !clientSecret) {
+    throw new Error(`config.json 缺少 clientId / clientSecret。請先到 https://${args.domain}/api/clients/ 建立一個 API Client,把 Client ID 和 Client Secret 填進 config.json。`);
+  }
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const res = await fetch(`https://${args.domain}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Authorization': `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials',
   });
-  const page = context.pages()[0] || await context.newPage();
+  if (!res.ok) throw new Error(`取得 FFLogs access token 失敗: HTTP ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  return json.access_token;
+}
 
-  console.log(`[1/3] 開啟報告總覽頁... 若跳出 Cloudflare 驗證請手動完成一次即可。`);
-  await page.goto(`https://${args.domain}/reports/${args.report}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForSelector('[class*="-wipes-phases"]', { timeout: 60000 });
-  await page.waitForTimeout(1000);
+async function fflogsGraphql(token, query, variables) {
+  const res = await fetch(`https://${args.domain}/api/v2/client`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`FFLogs GraphQL 請求失敗: HTTP ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  if (json.errors) throw new Error(`FFLogs GraphQL 錯誤: ${JSON.stringify(json.errors)}`);
+  return json.data;
+}
 
-  const reportTitle = await page.evaluate(() =>
-    document.querySelector('.report-name-text')?.textContent?.trim() || document.title
-  );
-
-  const pulls = await page.evaluate(() => {
-    const container = document.querySelector('[class*="-wipes-phases"]');
-    if (!container) return [];
-    const results = [];
-    let currentBoss = null;
-    for (const child of container.children) {
-      if (child.matches('a.phase-fight-grid-caption')) {
-        const clone = child.cloneNode(true);
-        const innerSpan = clone.querySelector('span');
-        if (innerSpan) innerSpan.remove();
-        currentBoss = clone.textContent.trim();
-      } else if (child.matches('div.wipes-table')) {
-        const entries = child.querySelectorAll('a.wipes-entry');
-        for (const entry of entries) {
-          const href = entry.getAttribute('href') || '';
-          const m = href.match(/fight=(\d+)/);
-          const pullNumber = m ? parseInt(m[1], 10) : null;
-          const percent = entry.querySelector('.fight-grid-cell-percent')?.textContent.trim() || '';
-          const phase = entry.querySelector('.fight-grid-cell-phase')?.textContent.trim() || '';
-          const durationText = (entry.querySelector('.fight-grid-duration')?.textContent || '').trim();
-          const clockTime = (entry.querySelector('.fight-grid-time')?.textContent || '').trim();
-          results.push({ pullNumber, boss: currentBoss, percent, phase, durationText, clockTime });
+const REPORT_QUERY = `
+  query($code: String!) {
+    reportData {
+      report(code: $code) {
+        title
+        startTime
+        fights(killType: All) {
+          id
+          name
+          kill
+          startTime
+          endTime
+          bossPercentage
+          fightPercentage
+          lastPhase
+          encounterID
+        }
+        masterData {
+          actors(type: "Player") { id name subType }
+          abilities { gameID name }
         }
       }
     }
-    return results;
-  });
-  pulls.sort((a, b) => a.pullNumber - b.pullNumber);
+  }
+`;
+
+const DEATHS_QUERY = `
+  query($code: String!, $fightIDs: [Int]!, $startTime: Float!, $endTime: Float!) {
+    reportData {
+      report(code: $code) {
+        events(fightIDs: $fightIDs, dataType: Deaths, startTime: $startTime, endTime: $endTime) {
+          data
+          nextPageTimestamp
+        }
+      }
+    }
+  }
+`;
+
+// ---------- 1. 用 FFLogs API 抓報告資料 ----------
+async function scrapeReport() {
+  console.log(`[1/3] 用 FFLogs API 取得報告資料...`);
+  const token = await getAccessToken();
+
+  const data = await fflogsGraphql(token, REPORT_QUERY, { code: args.report });
+  const report = data.reportData.report;
+  if (!report) throw new Error(`找不到報告 ${args.report}(domain: ${args.domain}),請確認報告代碼與 --domain 是否正確。`);
+
+  const reportTitle = report.title;
+  const actorById = new Map(report.masterData.actors.map(a => [a.id, a]));
+  const abilityById = new Map(report.masterData.abilities.map(a => [a.gameID, a.name]));
+
+  const pulls = report.fights
+    .filter(f => f.encounterID) // 排除雜項/過場等非戰鬥 fight,只留真正的王
+    .map(f => {
+      const durationSec = Math.max(0, (f.endTime - f.startTime) / 1000);
+      const percent = f.bossPercentage != null ? `${f.bossPercentage.toFixed(2)}%`
+        : (f.fightPercentage != null ? `${f.fightPercentage.toFixed(2)}%` : '');
+      const clockTime = new Date(report.startTime + f.startTime)
+        .toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+      return {
+        pullNumber: f.id,
+        boss: f.name,
+        percent,
+        phase: f.lastPhase ? `P${f.lastPhase}` : '',
+        durationText: secToMMSS(durationSec),
+        durationSec,
+        clockTime,
+        kill: f.kill,
+        fightStartTime: f.startTime,
+        fightEndTime: f.endTime,
+      };
+    })
+    .sort((a, b) => a.pullNumber - b.pullNumber);
   console.log(`    找到 ${pulls.length} 場 pull。`);
 
   console.log(`[2/3] 逐場抓取死亡事件...`);
   for (const pull of pulls) {
-    const url = `https://${args.domain}/reports/${args.report}?fight=${pull.pullNumber}&type=deaths`;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    try {
-      await page.waitForSelector('table[id^="deaths-table-"]', { timeout: 8000 });
-    } catch {
-      pull.deaths = [];
-      console.log(`    pull ${pull.pullNumber}: 無死亡表格 (可能 0 死亡或該場 clear)`);
-      continue;
+    let events = [];
+    let startTime = pull.fightStartTime;
+    // events 有分頁上限,理論上單一 pull 死亡數不會超過,但保留迴圈以防萬一。
+    while (true) {
+      const d = await fflogsGraphql(token, DEATHS_QUERY, {
+        code: args.report,
+        fightIDs: [pull.pullNumber],
+        startTime,
+        endTime: pull.fightEndTime,
+      });
+      const page = d.reportData.report.events;
+      events.push(...(page.data || []));
+      if (page.nextPageTimestamp) startTime = page.nextPageTimestamp;
+      else break;
     }
-    await page.waitForTimeout(300);
-    const deaths = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll('table[id^="deaths-table-"] tbody tr'));
-      return rows.map(tr => {
-        const timeText = (tr.querySelector('td.main-table-number.sorting_1')?.textContent || '').trim();
-        const nameEl = tr.querySelector('td.main-table-name .main-table-link');
-        const name = (nameEl?.textContent || '').trim();
-        const job = (nameEl?.className || '').replace('main-table-link', '').trim();
-        return { timeText, name, job };
-      }).filter(d => d.timeText && d.name);
-    });
-    pull.deaths = deaths.map(d => ({ ...d, timeSec: mmssToSec(d.timeText) })).filter(d => d.timeSec != null);
+    pull.deaths = events
+      .filter(e => e.type === 'death')
+      .map(e => {
+        const actor = actorById.get(e.targetID);
+        if (!actor) return null; // NPC/寵物死亡,跳過
+        const timeSec = (e.timestamp - pull.fightStartTime) / 1000;
+        return {
+          name: actor.name,
+          job: actor.subType,
+          timeSec,
+          timeText: secToMMSS(timeSec),
+          abilityName: abilityById.get(e.killingAbilityGameID) || null,
+        };
+      })
+      .filter(Boolean);
     console.log(`    pull ${pull.pullNumber} (${pull.boss}): ${pull.deaths.length} 個死亡事件`);
   }
 
-  await context.close();
   return { reportTitle, pulls };
 }
 
@@ -274,7 +365,7 @@ function clusterAndFilter(pull) {
     let reason = include ? 'ok' : (c.isFinalWipe ? 'final_wipe' : 'too_large');
     if (include) {
       for (const grp of IGNORE_GROUPS) {
-        if (sameSet(uniqueNames, grp)) { include = false; reason = 'ignored_tactical'; break; }
+        if (matchesIgnoreGroup(c, grp)) { include = false; reason = 'ignored_tactical'; break; }
       }
     }
     c.include = include;
@@ -346,7 +437,6 @@ async function main() {
   const { reportTitle, pulls } = await scrapeReport();
 
   for (const pull of pulls) {
-    pull.durationSec = mmssToSec(pull.durationText) ?? 0;
     pull.clusters = clusterAndFilter(pull);
   }
 

@@ -1,11 +1,15 @@
 {
   "publishRoot": "D:\\WEB\\Apache24\\htdocs\\death_clips",
   "domain": "cn.fflogs.com",
+  "_comment_clientId": "到 https://cn.fflogs.com/api/clients/ 建立 API Client 取得,用官方 API 抓資料,不會卡 Cloudflare 驗證",
+  "clientId": "",
+  "clientSecret": "",
   "lead": 10,
   "padBefore": 10,
   "padAfter": 5,
   "gap": 10,
+  "_comment_ignoreGroups": "每組可以是純名字陣列(只比對同時死亡的人),或 {players, ability} 物件(死因技能也要對上才忽略,較精確)",
   "ignoreGroups": [
-    ["肥朒朒膨鼠", "遲到松坂", "Shiro"]
+    { "players": ["肥朒朒膨鼠", "遲到松坂", "Shiro"], "ability": "大地之重" }
   ]
 }
