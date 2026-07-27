@@ -32,10 +32,10 @@ cp config.example.json config.json
 ## 使用方式
 
 ```
-node scrape.mjs --report <FFLogs報告代碼> --video-dir "<這場錄影所在的資料夾路徑>"
+node scrape.mjs --report <FFLogs報告代碼> [--video-dir "<這場錄影所在的資料夾路徑>"]
 ```
 
-報告代碼從 FFLogs 網址取得:`https://cn.fflogs.com/reports/AbCdEfGh1234` → 代碼是 `AbCdEfGh1234`。`--video-dir` 請用絕對路徑,資料夾內錄影檔名需符合 `YYYY-MM-DD_HH-MM-SS.mp4` 格式(大多數 OBS 預設命名就是這樣),工具會用檔名判斷戰鬥日期、並依照片長把每支影片對應到正確的 pull。
+報告代碼從 FFLogs 網址取得:`https://cn.fflogs.com/reports/AbCdEfGh1234` → 代碼是 `AbCdEfGh1234`。`--video-dir` 是選填的,請用絕對路徑,資料夾內錄影檔名需符合 `YYYY-MM-DD_HH-MM-SS.mp4` 格式(大多數 OBS 預設命名就是這樣),工具會用檔名判斷戰鬥日期、並依照片長把每支影片對應到正確的 pull。不提供 `--video-dir` 時,只會抓資料、分群並產生網頁,不比對影片也不剪片(戰鬥日期需另外用 `--date` 指定,否則預設今天)。
 
 第一次執行若跳出 Cloudflare 「我是人類」驗證,手動完成一次即可,之後 `.pw-profile` 會記住驗證狀態。
 

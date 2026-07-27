@@ -11,7 +11,7 @@
 // 選項(這裡指定的值會覆蓋 config.json):
 //   --report <code>       FFLogs 報告代碼 (必填)
 //   --domain <domain>     預設讀 config.json,否則 cn.fflogs.com
-//   --video-dir <path>    存放對應錄影 mp4 的資料夾 (必填)
+//   --video-dir <path>    存放對應錄影 mp4 的資料夾 (選填,不提供則只抓資料/分群,不比對影片、不剪片)
 //   --out-dir <path>      輸出資料夾,預設 <publish-root>\<date>\ (見下)
 //   --publish-root <path> 網站發布根目錄,預設讀 config.json 的 publishRoot
 //   --date <YYYY-MM-DD>   發布用的日期子目錄,預設自動從錄影檔名判斷戰鬥當天日期(判斷不出來才退回今天)
@@ -136,8 +136,8 @@ function resolveOutDir(publishRoot, baseDate, reportCode) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-if (!args.report || !args.videoDir) {
-  console.error('用法: node scrape.mjs --report <code> --video-dir <path> [--domain cn.fflogs.com] [--out-dir path] [--publish-root path] [--date YYYY-MM-DD] [--lead 10] [--pad-before 10] [--pad-after 5] [--gap 10] [--no-cut] [--ignore "A,B,C;D,E"]');
+if (!args.report) {
+  console.error('用法: node scrape.mjs --report <code> [--video-dir <path>] [--domain cn.fflogs.com] [--out-dir path] [--publish-root path] [--date YYYY-MM-DD] [--lead 10] [--pad-before 10] [--pad-after 5] [--gap 10] [--no-cut] [--ignore "A,B,C;D,E"]');
   process.exit(1);
 }
 args.domain = args.domain || CONFIG.domain || 'cn.fflogs.com';
@@ -151,18 +151,22 @@ if (!args.publishRoot && !args.outDir) {
   process.exit(1);
 }
 
-// 盡早驗證 --video-dir,避免相對路徑打錯字時,浪費一輪 API 請求才在剪片階段才炸掉。
-args.videoDir = path.resolve(args.videoDir);
-if (!fs.existsSync(args.videoDir) || !fs.statSync(args.videoDir).isDirectory()) {
-  console.error(`!! 找不到錄影資料夾: ${args.videoDir}`);
-  console.error(`   請確認 --video-dir 路徑正確,建議使用絕對路徑,例如:`);
-  console.error(`   --video-dir "E:\\obs\\07-20-絕 究極武器破壞作戰"`);
-  process.exit(1);
+// 盡早驗證 --video-dir(若有給),避免相對路徑打錯字時,浪費一輪 API 請求才在剪片階段才炸掉。
+if (args.videoDir) {
+  args.videoDir = path.resolve(args.videoDir);
+  if (!fs.existsSync(args.videoDir) || !fs.statSync(args.videoDir).isDirectory()) {
+    console.error(`!! 找不到錄影資料夾: ${args.videoDir}`);
+    console.error(`   請確認 --video-dir 路徑正確,建議使用絕對路徑,例如:`);
+    console.error(`   --video-dir "E:\\obs\\07-20-絕 究極武器破壞作戰"`);
+    process.exit(1);
+  }
+} else {
+  console.log('未提供 --video-dir,只抓資料/分群,不比對影片、不剪片。');
 }
 
 if (!args.outDir) {
-  const battleDate = args.date || deriveBattleDate(args.videoDir) || todayDateStr();
-  if (!args.date && battleDate === todayDateStr() && !deriveBattleDate(args.videoDir)) {
+  const battleDate = args.date || (args.videoDir && deriveBattleDate(args.videoDir)) || todayDateStr();
+  if (!args.date && battleDate === todayDateStr() && args.videoDir && !deriveBattleDate(args.videoDir)) {
     console.warn('!! 無法從錄影檔名判斷戰鬥日期(檔名不是 YYYY-MM-DD_... 格式),退回使用今天日期。可用 --date 手動指定。');
   }
   const resolved = resolveOutDir(args.publishRoot, battleDate, args.report);
@@ -440,7 +444,11 @@ async function main() {
     pull.clusters = clusterAndFilter(pull);
   }
 
-  await matchVideos(pulls);
+  if (args.videoDir) {
+    await matchVideos(pulls);
+  } else {
+    console.log('[3/3] 未提供 --video-dir,略過影片比對。');
+  }
 
   console.log(`[剪片] 開始產生候選片段...`);
   let clipCount = 0;
