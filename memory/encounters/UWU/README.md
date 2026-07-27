@@ -44,7 +44,8 @@ P4(究極神兵)的「追擊之究極幻想」「爆擊之究極幻想」「亂�
 | [`Titan.md`](./Titan.md) | P3 | 泰坦本體戰(覺醒前/後)。含花崗石牢/污泥機制、地裂覺醒後追加無預兆判定。 |
 | [`UltimaWeapon.md`](./UltimaWeapon.md) | P4 | 拉哈布雷亞檢查點 + 究極神兵三個組合技子階段(追擊/爆擊/亂擊之究極幻想)。大量沿用P1~P3技能,本檔只詳述P4獨有機制(以太值資源、以太炸彈撞球、追蹤射線、光柱、魔科學雷射等)。 |
 | [`FinalPhase.md`](./FinalPhase.md) | P5 | 三神過場秀/最終場。以太波動、以太炸彈(P5版,與P4連動)、吸附式炸彈,以及全戰鬥最重要的DPS check——黑蛇究極(依傷害排名依序即死的狂暴收尾)。 |
+| [`WIPE_ANALYSIS.md`](./WIPE_ANALYSIS.md) | 跨階段 | 例外檔案——**含判讀內容,不是純技能事實表**。給 `.claude/skills/wipe-cause-analysis/SKILL.md` 查用,記錄這隻王的機制特性怎麼影響「整把團滅根本原因」判讀、FFLogs查表常見的弱訊號模式。跟 `../../../UWU_MECHANICS.md` 一樣是給所有人共用的知識,不含任何團隊自己的黑話/名單/特定report的答案。 |
 
 ## 這份索引不含什麼
 
-死因判讀、團隊執行/應對建議、極限技使用時機——這些內容屬於 `../../../UWU_MECHANICS.md` 的責任範圍,不在這份索引或底下的 `<Boss>.md` 裡。死因分析的完整查表流程見 `.claude/skills/death-cause-analysis/SKILL.md`。遇到不在任何 `<Boss>.md` 裡的技能名稱,代表這份資料庫可能有疏漏,可考慮回報補充。
+死因判讀、團隊執行/應對建議、極限技使用時機——這些內容屬於 `../../../UWU_MECHANICS.md`(單一死亡)跟 `WIPE_ANALYSIS.md`(整把團滅)的責任範圍,不在這份索引或底下的 `<Boss>.md` 裡。死因分析的完整查表流程見 `.claude/skills/death-cause-analysis/SKILL.md`;團滅根本原因分析見 `.claude/skills/wipe-cause-analysis/SKILL.md`。遇到不在任何 `<Boss>.md` 裡的技能名稱,代表這份資料庫可能有疏漏,可考慮回報補充。
