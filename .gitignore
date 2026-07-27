@@ -2,3 +2,4 @@ node_modules/
 .pw-profile/
 config.json
 *.log
+/death_clips
